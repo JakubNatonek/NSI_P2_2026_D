@@ -1,0 +1,10 @@
+SUT: System zarządzania kontem bankowym (Zespół D)
+
+Repozytorium:
+
+Znalezione Awarie:
+
+Wskaźniki:
+Liczba wywołań = 35
+
+Liczba awarii = 19
