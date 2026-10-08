@@ -1,0 +1,27 @@
+1. Czym różni się fault od failure? Podaj przykład usterki, która nigdy nie ujawni się jako awaria.
+
+Fault (usterka) jest błędem w kodzie źródłowym lub projekcie, natomiast failure (awaria) to obserwowalne przez użytkownika odstępstwo zachowania systemu od jego specyfikacji. Przykładem usterki, która nigdy nie stanie się awarią, może być literówka w fragmencie kodu, który jest tzw. „martwym kodem” i nigdy nie jest wykonywany podczas pracy programu.
+
+2. Dlaczego dwa programy z taką samą liczbą usterek mogą mieć różną niezawodność?
+
+Niezawodność nie zależy wyłącznie od samej liczby usterek, lecz od tego, jak często są one aktywowane w trakcie typowego użytkowania systemu. Jeśli jeden program posiada usterki w rzadko używanych funkcjach, a drugi w kluczowych ścieżkach wykonywanych przez każdego użytkownika, to ten drugi program będzie w praktyce znacznie mniej niezawodny.
+
+3. Co oznacza dostępność na poziomie 99,9% w godzinach przestoju rocznie?
+
+Dostępność na poziomie 99,9% oznacza, że w skali roku dopuszczalny czas, w którym system może być niedostępny (przestój), wynosi około 8,76 godziny. Wynika to z faktu, że rok liczy 8760 godzin, a 0,1% tego czasu stanowi właśnie wspomniane 8,76 godziny.
+
+4. Dlaczego profil operacyjny jest istotny przy planowaniu testów?
+
+Profil operacyjny jest kluczowy, ponieważ opisuje on sposób, w jaki system jest faktycznie wykorzystywany, określając częstotliwość wywoływania poszczególnych funkcji. Dzięki niemu można skoncentrować testy na najważniejszych obszarach systemu, zamiast testować wszystkie funkcje „po równo”, co pozwala lepiej oszacować realną niezawodność odczuwaną przez użytkowników.
+
+5. Jakie dane musi zawierać wpis w logu awarii, żeby awaria była powtarzalna (reprodukowalna)?
+
+Aby awaria była możliwa do powtórzenia, wpis w logu musi zawierać przede wszystkim dane wejściowe (argumenty wywołania), które doprowadziły do wystąpienia błędu. Oprócz tego niezbędne są: znacznik czasu, informacja o wywoływanej funkcji lub module oraz opis stanu systemu, aby programista mógł odtworzyć środowisko, w którym błąd wystąpił.
+
+6. Czym różni się awaria krytyczna od poważnej? Podaj przykład własny, inny niż w materiale.
+
+Awaria krytyczna powoduje całkowite zatrzymanie systemu, utratę danych lub naruszenie bezpieczeństwa, podczas gdy awaria poważna oznacza, że konkretna funkcja nie działa poprawnie, ale reszta systemu pozostaje stabilna i funkcjonalna. Przykładem awarii krytycznej w systemie bankowym może być błąd, który podczas wypłaty gotówki z bankomatu pobiera pieniądze z konta, ale nie wydaje ich fizycznie i nie zapisuje historii transakcji w bazie danych. Przykładem awarii poważnej może być sytuacja, w której w aplikacji bankowej nie działa poprawnie funkcja generowania wykresu wydatków z ostatniego miesiąca, mimo że sama obsługa konta i przelewów działa w pełni poprawnie.
+
+7. Mając cztery awarie w czasach 12s, 47s, 53s, 118s, pokaż jak policzyć MTTF i podaj wynik.
+
+Aby obliczyć MTTF, należy najpierw wyznaczyć odstępy czasu między kolejnymi awariami: pierwszy odstęp wynosi 12s, drugi to 47s - 12s = 35s, trzeci to 53s - 47s = 6s, a czwarty to 118s - 53s = 65s. Następnie wyciągamy średnią z tych odstępów: (12 + 35 + 6 + 65) / 4 = 118 / 4. Wynikowy MTTF wynosi 29,5 sekundy.
