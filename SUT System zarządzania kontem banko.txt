@@ -1,10 +1,46 @@
 SUT: System zarządzania kontem bankowym (Zespół D)
+Opis systemu: System umożliwia zakładanie kont bankowych, wpłaty, wypłaty, przelewy i naliczanie odsetek.
 
-Repozytorium:
+Repozytorium: https://github.com/JakubNatonek/NSI_P2_2026_D
 
 Znalezione Awarie:
 
-Wskaźniki:
-Liczba wywołań = 35
+	ValueError niska: 12 odrzucanie nieprawidłowych numerów kont, zerowych i ujemnych kwot oraz operacji bez wystarczających środków.
+	KontoNieIstnieje niska: 4 próby wykonania operacji na nieistniejącym koncie.
+	KontoZablokowane niska: 1 próba wypłaty ze zablokowanego konta.
+	TypeError średnia: 2 przekazanie kwoty jako tekstu zamiast liczby.
 
-Liczba awarii = 19
+
+
+Wskaźniki:
+	Liczba wywołań: 35
+
+	Liczba awarii: 19
+	Gęstość defektów: 19/0.2KLOC = 95 usterek/KLOC
+	MTTF:
+		1:0.0166893
+		2:0.0061989
+		3:0.0121593
+		4:0.0047684
+		5:0.0102520
+		6:0.0040531
+		7:0.0035763
+		8:0.0042915
+		9:0.0042915
+		10:0.0040531
+		11:0.0047684
+		12:0.0035763
+		13:0.0033379
+		14:0.0040531
+		15:0.0073910
+		16:0.0057220
+		17:0.0038147
+		18:0.0035763
+		19:0.0050068
+
+		Suma czasów do awarii: 0.1133984 ms
+
+		MTTF = 0.1133984 ms/ 19 = 0.00596833684210526315789473684211 ms
+
+Wniosek
+Najbardziej ryzykowne są operacje finansowe, szczególnie przelewy i wypłaty, ponieważ błędy w tych funkcjach mogą wpłynąć na poprawność transakcji oraz stan środków na koncie.
