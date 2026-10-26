@@ -1383,3 +1383,127 @@ def test_przelew_zewnetrzny_niewystarczajace_srodki():
             kwota=200,
             procesor=procesor
         )
+
+# =========================================================
+# Dodane testy dla mutantów
+# =========================================================
+
+def test_wplata_kwoty_jeden_i_wartosc_zwracana():
+    bank = BankSystem()
+    numer_konta = poprawny_numer(123456789)
+
+    konto = bank.utworz_konto(
+        numer=numer_konta, 
+        wlasciciel="Jan Kowalski", 
+        saldo_poczatkowe=1000
+    )
+
+    wynik = bank.wplac(
+        numer=numer_konta,
+        kwota=1
+    )
+
+    assert konto.saldo == 1001
+    assert wynik == Decimal("1001")
+
+def test_wyplata_kwoty_jeden_i_wartosc_zwracana():
+    bank = BankSystem()
+    numer_konta = poprawny_numer(123456789)
+
+    konto = bank.utworz_konto(
+        numer=numer_konta, 
+        wlasciciel="Jan Kowalski", 
+        saldo_poczatkowe=1000
+    )
+
+    wynik = bank.wyplac(
+        numer=numer_konta,
+        kwota=1
+    )
+
+    assert konto.saldo == 999
+    assert wynik == Decimal("999")
+
+def test_wyplata_calego_salda_jest_odrzucana():
+
+    bank = BankSystem()
+    numer_konta = poprawny_numer(123456789)
+
+    konto = bank.utworz_konto(
+        numer=numer_konta, 
+        wlasciciel="Jan Kowalski", 
+        saldo_poczatkowe=1000
+    )
+
+    with pytest.raises(ValueError):
+        bank.wyplac(
+            numer=numer_konta,
+            kwota=1000
+        )
+    
+    assert konto.saldo == Decimal("1000")
+    assert konto.historia == []
+
+def test_wyplata_dokladnie_do_limitu_dziennego():
+    bank = BankSystem()
+    numer_konta = poprawny_numer(123456789)
+
+    konto = bank.utworz_konto(
+        numer=numer_konta, 
+        wlasciciel="Jan Kowalski", 
+        saldo_poczatkowe=10000
+    )
+
+    wynik = bank.wyplac(
+        numer=numer_konta,
+        kwota=5000
+    )
+
+    assert konto.saldo == Decimal("5000")
+    assert wynik == Decimal("5000")
+
+def test_suma_dzisiejszych_wyplat_pomija_stare_operacje():
+    bank = BankSystem()
+    numer_konta = poprawny_numer(123456789)
+
+    konto = bank.utworz_konto(
+        numer=numer_konta, 
+        wlasciciel="Jan Kowalski", 
+        saldo_poczatkowe=10000
+    )
+
+    dzis = date.today()
+    wczoraj = date.fromordinal(dzis.toordinal() - 1)
+
+    konto.dodaj_wpis("wyplata", Decimal("3000"), wczoraj)
+    konto.dodaj_wpis("wplata", Decimal("200"), dzis)
+
+    assert bank._suma_dzisiejszych_wyplat(konto) == Decimal("0")
+
+
+def test_przelew_zewnetrzny_na_cale_saldo():
+    bank = BankSystem()
+    numer_konta = poprawny_numer(123456789)
+
+    konto = bank.utworz_konto(
+        numer=numer_konta, 
+        wlasciciel="Jan Kowalski", 
+        saldo_poczatkowe=1000
+    )
+
+    procesor = ZewnetrznyProcesor(
+        prawdopodobienstwo_awarii=0.0
+    )
+
+    wynik = bank.przelew_zewnetrzny(
+        numer_z=numer_konta,
+        numer_konta_docelowego_zewn="1111111111",
+        kwota=1000,
+        procesor=procesor
+    )
+    
+    assert wynik["status"] == "zaksiegowano"
+    assert konto.saldo == Decimal("0")
+    assert konto.historia[-1][1:] == (
+        "przelew_zewnetrzny", Decimal("1000")
+    )
