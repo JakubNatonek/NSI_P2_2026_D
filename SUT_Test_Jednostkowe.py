@@ -126,7 +126,7 @@ def test_utworz_konto_domyslne_saldo():
 #wyplac
 #=========================================================================================
 
-def test_wyplata():
+def test_wyplata_poprawna():
     bank = BankSystem()
     numer_konta = poprawny_numer(123456789)
 
@@ -136,11 +136,12 @@ def test_wyplata():
         saldo_poczatkowe=1000
     )
 
-    bank.wyplac(
+    wynik = bank.wyplac(
         numer=numer_konta,
         kwota=100
     )
 
+    assert wynik == 900
     assert konto.saldo == 900
 
 def test_wyplata_zablokowane_konto():
@@ -212,6 +213,62 @@ def test_wyplata_zero():
             numer=numer_konta,
             kwota=0
         )
+
+def test_wyplata_jeden():
+    bank = BankSystem()
+    numer_konta = poprawny_numer(123456789)
+
+    konto = bank.utworz_konto(
+        numer=numer_konta, 
+        wlasciciel="Jan Kowalski", 
+        saldo_poczatkowe=1000
+    )
+
+    wynik = bank.wyplac(
+        numer=numer_konta,
+        kwota=1
+    )
+
+    assert wynik == 999
+    assert konto.saldo == 999
+
+def test_wyplata_calego_salda():
+
+    bank = BankSystem()
+    numer_konta = poprawny_numer(123456789)
+
+    konto = bank.utworz_konto(
+        numer=numer_konta, 
+        wlasciciel="Jan Kowalski", 
+        saldo_poczatkowe=1000
+    )
+
+    with pytest.raises(ValueError):
+        bank.wyplac(
+            numer=numer_konta,
+            kwota=1000
+        )
+    
+    assert konto.saldo == Decimal("1000")
+    assert konto.historia == []
+
+def test_wyplata_dokladnie_do_limitu_dziennego():
+    bank = BankSystem()
+    numer_konta = poprawny_numer(123456789)
+
+    konto = bank.utworz_konto(
+        numer=numer_konta, 
+        wlasciciel="Jan Kowalski", 
+        saldo_poczatkowe=10000
+    )
+
+    wynik = bank.wyplac(
+        numer=numer_konta,
+        kwota=5000
+    )
+
+    assert konto.saldo == Decimal("5000")
+    assert wynik == Decimal("5000")
 
 def test_wyplata_niepoprawny_typ_kwoty_blendna_kwota():
     bank = BankSystem()
@@ -323,7 +380,7 @@ def test_wyplata_przekroczenie_limitu_dziennego_wielokrotne_wyplaty():
 #wplac
 #=========================================================================================
 
-def test_wplata():
+def test_wplata_poprawna():
     bank = BankSystem()
     numer_konta = poprawny_numer(123456789)
 
@@ -333,12 +390,31 @@ def test_wplata():
         saldo_poczatkowe=1000
     )
 
-    bank.wplac(
+    wynik = bank.wplac(
         numer=numer_konta,
         kwota=100
     )
 
     assert konto.saldo == 1100
+    assert wynik == Decimal("1100")
+
+def test_wplata_kwoty_jeden_():
+    bank = BankSystem()
+    numer_konta = poprawny_numer(123456789)
+
+    konto = bank.utworz_konto(
+        numer=numer_konta, 
+        wlasciciel="Jan Kowalski", 
+        saldo_poczatkowe=1000
+    )
+
+    wynik = bank.wplac(
+        numer=numer_konta,
+        kwota=1
+    )
+
+    assert konto.saldo == 1001
+    assert wynik == Decimal("1001")
 
 def test_wplata_zablokowane_konto(): # Można wypłacić z zablokowaneego konta
     bank = BankSystem()
@@ -440,6 +516,7 @@ def test_wplata_zero():
             numer=numer_konta,
             kwota=0
         )
+
 #=========================================================================================
 #dodaj_wpis
 #=========================================================================================
@@ -964,6 +1041,24 @@ def test_nalicz_odsetki_niepoprawny_typ_miesiecy():
 # historia i wyciąg
 # =========================================================
 
+def test_suma_dzisiejszych_wyplat_pomija_stare_operacje():
+    bank = BankSystem()
+    numer_konta = poprawny_numer(123456789)
+
+    konto = bank.utworz_konto(
+        numer=numer_konta, 
+        wlasciciel="Jan Kowalski", 
+        saldo_poczatkowe=10000
+    )
+
+    dzis = date.today()
+    wczoraj = date.fromordinal(dzis.toordinal() - 1)
+
+    konto.dodaj_wpis("wyplata", Decimal("3000"), wczoraj)
+    konto.dodaj_wpis("wplata", Decimal("200"), dzis)
+
+    assert bank._suma_dzisiejszych_wyplat(konto) == Decimal("0")
+
 def test_historia_w_okresie():
     bank = BankSystem()
     numer_konta = poprawny_numer(123456789)
@@ -1152,6 +1247,67 @@ def test_historia_w_okresie_zakres_dat():
         "wplata",
         Decimal("200")
     )
+
+def test_wyciag_miesieczny_wyplaty():
+    bank = BankSystem()
+    numer = poprawny_numer(123456789)
+
+    konto = bank.utworz_konto(
+        numer=numer,
+        wlasciciel="Jan Kowalski",
+        saldo_poczatkowe=5000
+    )
+
+    konto.dodaj_wpis(
+        "przelew_wychodzacy",
+        Decimal("300"),
+        date(2025, 5, 10)
+    )
+
+    konto.dodaj_wpis(
+        "wyplata",
+        Decimal("100"),
+        date(2025, 5, 10)
+    )
+
+    wynik = bank.wyciag_miesieczny(numer, 2025, 5)
+
+    assert wynik["wyplaty"] == Decimal("400")
+    assert wynik["wplaty"] == Decimal("0")
+
+
+def test_wyciag_miesieczny_wplaty():
+    bank = BankSystem()
+    numer = poprawny_numer(123456789)
+
+    konto = bank.utworz_konto(
+        numer=numer,
+        wlasciciel="Jan Kowalski",
+        saldo_poczatkowe=5000
+    )
+
+    konto.dodaj_wpis(
+        "wplata",
+        Decimal("200"),
+        date(2025, 5, 10)
+    )
+
+    konto.dodaj_wpis(
+        "przelew_przychodzacy",
+        Decimal("150"),
+        date(2025, 5, 10)
+    )
+
+    konto.dodaj_wpis(
+        "odsetki",
+        Decimal("50"),
+        date(2025, 5, 10)
+    )
+
+    wynik = bank.wyciag_miesieczny(numer, 2025, 5)
+
+    assert wynik["wplaty"] == Decimal("400")
+    assert wynik["wyplaty"] == Decimal("0")
 
 # =========================================================
 # przelew zewnętrzny
@@ -1384,103 +1540,6 @@ def test_przelew_zewnetrzny_niewystarczajace_srodki():
             procesor=procesor
         )
 
-# =========================================================
-# Dodane testy dla mutantów
-# =========================================================
-
-def test_wplata_kwoty_jeden_i_wartosc_zwracana():
-    bank = BankSystem()
-    numer_konta = poprawny_numer(123456789)
-
-    konto = bank.utworz_konto(
-        numer=numer_konta, 
-        wlasciciel="Jan Kowalski", 
-        saldo_poczatkowe=1000
-    )
-
-    wynik = bank.wplac(
-        numer=numer_konta,
-        kwota=1
-    )
-
-    assert konto.saldo == 1001
-    assert wynik == Decimal("1001")
-
-def test_wyplata_kwoty_jeden_i_wartosc_zwracana():
-    bank = BankSystem()
-    numer_konta = poprawny_numer(123456789)
-
-    konto = bank.utworz_konto(
-        numer=numer_konta, 
-        wlasciciel="Jan Kowalski", 
-        saldo_poczatkowe=1000
-    )
-
-    wynik = bank.wyplac(
-        numer=numer_konta,
-        kwota=1
-    )
-
-    assert konto.saldo == 999
-    assert wynik == Decimal("999")
-
-def test_wyplata_calego_salda_jest_odrzucana():
-
-    bank = BankSystem()
-    numer_konta = poprawny_numer(123456789)
-
-    konto = bank.utworz_konto(
-        numer=numer_konta, 
-        wlasciciel="Jan Kowalski", 
-        saldo_poczatkowe=1000
-    )
-
-    with pytest.raises(ValueError):
-        bank.wyplac(
-            numer=numer_konta,
-            kwota=1000
-        )
-    
-    assert konto.saldo == Decimal("1000")
-    assert konto.historia == []
-
-def test_wyplata_dokladnie_do_limitu_dziennego():
-    bank = BankSystem()
-    numer_konta = poprawny_numer(123456789)
-
-    konto = bank.utworz_konto(
-        numer=numer_konta, 
-        wlasciciel="Jan Kowalski", 
-        saldo_poczatkowe=10000
-    )
-
-    wynik = bank.wyplac(
-        numer=numer_konta,
-        kwota=5000
-    )
-
-    assert konto.saldo == Decimal("5000")
-    assert wynik == Decimal("5000")
-
-def test_suma_dzisiejszych_wyplat_pomija_stare_operacje():
-    bank = BankSystem()
-    numer_konta = poprawny_numer(123456789)
-
-    konto = bank.utworz_konto(
-        numer=numer_konta, 
-        wlasciciel="Jan Kowalski", 
-        saldo_poczatkowe=10000
-    )
-
-    dzis = date.today()
-    wczoraj = date.fromordinal(dzis.toordinal() - 1)
-
-    konto.dodaj_wpis("wyplata", Decimal("3000"), wczoraj)
-    konto.dodaj_wpis("wplata", Decimal("200"), dzis)
-
-    assert bank._suma_dzisiejszych_wyplat(konto) == Decimal("0")
-
-
 def test_przelew_zewnetrzny_na_cale_saldo():
     bank = BankSystem()
     numer_konta = poprawny_numer(123456789)
@@ -1507,3 +1566,164 @@ def test_przelew_zewnetrzny_na_cale_saldo():
     assert konto.historia[-1][1:] == (
         "przelew_zewnetrzny", Decimal("1000")
     )
+
+
+# =========================================================
+# brakujące testy funkcjonalne dla klas równoważności i wartości brzegowych
+# =========================================================
+
+def test_przelew_kwota_rowna_saldo_jest_dopuszczona():
+    bank = BankSystem()
+    numer_z = poprawny_numer(123456789)
+    numer_do = poprawny_numer(987654321)
+
+    konto_z = bank.utworz_konto(
+        numer=numer_z,
+        wlasciciel="Jan Kowalski",
+        saldo_poczatkowe=1000
+    )
+    konto_do = bank.utworz_konto(
+        numer=numer_do,
+        wlasciciel="Anna Nowak",
+        saldo_poczatkowe=500
+    )
+
+    wynik = bank.przelew(numer_z=numer_z, numer_do=numer_do, kwota=1000)
+
+    assert wynik == Decimal("0")
+    assert konto_z.saldo == Decimal("0")
+    assert konto_do.saldo == Decimal("1500")
+
+
+def test_przelew_kwota_rowna_limitowi_systemowemu_jest_dopuszczona():
+    bank = BankSystem()
+    numer_z = poprawny_numer(123456789)
+    numer_do = poprawny_numer(987654321)
+
+    konto_z = bank.utworz_konto(
+        numer=numer_z,
+        wlasciciel="Jan Kowalski",
+        saldo_poczatkowe=2000000
+    )
+    konto_do = bank.utworz_konto(
+        numer=numer_do,
+        wlasciciel="Anna Nowak",
+        saldo_poczatkowe=0
+    )
+
+    wynik = bank.przelew(numer_z=numer_z, numer_do=numer_do, kwota=Decimal("1000000"))
+
+    assert wynik == Decimal("1000000")
+    assert konto_z.saldo == Decimal("1000000")
+    assert konto_do.saldo == Decimal("1000000")
+
+
+def test_przelew_kwota_powyzej_limitu_zwraca_value_error():
+    bank = BankSystem()
+    numer_z = poprawny_numer(123456789)
+    numer_do = poprawny_numer(987654321)
+
+    bank.utworz_konto(
+        numer=numer_z,
+        wlasciciel="Jan Kowalski",
+        saldo_poczatkowe=2000000
+    )
+    bank.utworz_konto(
+        numer=numer_do,
+        wlasciciel="Anna Nowak",
+        saldo_poczatkowe=0
+    )
+
+    with pytest.raises(ValueError):
+        bank.przelew(numer_z=numer_z, numer_do=numer_do, kwota=Decimal("1000001"))
+
+
+def test_nalicz_odsetki_zero_stopy_i_ujemnej_stopy():
+    bank = BankSystem()
+    numer = poprawny_numer(123456789)
+    konto = bank.utworz_konto(
+        numer=numer,
+        wlasciciel="Jan Kowalski",
+        saldo_poczatkowe=1000
+    )
+
+    wynik = bank.nalicz_odsetki(numer=numer, roczna_stopa_procentowa=0, miesiace=12)
+    assert wynik == Decimal("1000")
+    assert konto.saldo == Decimal("1000")
+
+    with pytest.raises(ValueError):
+        bank.nalicz_odsetki(numer=numer, roczna_stopa_procentowa=-5, miesiace=12)
+
+
+def test_nalicz_odsetki_zerowy_i_ujemny_okres_kapitalizacji():
+    bank = BankSystem()
+    numer = poprawny_numer(123456789)
+    konto = bank.utworz_konto(
+        numer=numer,
+        wlasciciel="Jan Kowalski",
+        saldo_poczatkowe=1000
+    )
+
+    wynik_zero = bank.nalicz_odsetki(numer=numer, roczna_stopa_procentowa=12, miesiace=0)
+    assert wynik_zero == Decimal("1000")
+    assert konto.saldo == Decimal("1000")
+
+    with pytest.raises(ValueError):
+        bank.nalicz_odsetki(numer=numer, roczna_stopa_procentowa=12, miesiace=-1)
+
+
+def test_nalicz_odsetki_zaokragla_do_dwoch_miejsc_po_przecinku():
+    bank = BankSystem()
+    numer = poprawny_numer(123456789)
+    konto = bank.utworz_konto(
+        numer=numer,
+        wlasciciel="Jan Kowalski",
+        saldo_poczatkowe=Decimal("1000.00")
+    )
+
+    wynik = bank.nalicz_odsetki(numer=numer, roczna_stopa_procentowa=Decimal("0.12"), miesiace=1)
+
+    assert wynik == Decimal("1000.01")
+    assert konto.saldo == Decimal("1000.01")
+
+
+def test_historia_w_okresie_wlacza_granice_przedzialu():
+    bank = BankSystem()
+    numer = poprawny_numer(123456789)
+    konto = bank.utworz_konto(
+        numer=numer,
+        wlasciciel="Jan Kowalski",
+        saldo_poczatkowe=1000
+    )
+
+    konto.dodaj_wpis("wplata", Decimal("100"), date(2026, 1, 9))
+    konto.dodaj_wpis("wplata", Decimal("200"), date(2026, 1, 10))
+    konto.dodaj_wpis("wplata", Decimal("300"), date(2026, 1, 11))
+    konto.dodaj_wpis("wyplata", Decimal("50"), date(2026, 1, 19))
+    konto.dodaj_wpis("wyplata", Decimal("60"), date(2026, 1, 20))
+    konto.dodaj_wpis("wyplata", Decimal("70"), date(2026, 1, 21))
+
+    wynik = bank.historia_w_okresie(
+        numer=numer,
+        od=date(2026, 1, 10),
+        do=date(2026, 1, 20)
+    )
+
+    assert len(wynik) == 4
+    assert [rekord[0] for rekord in wynik] == [
+        date(2026, 1, 10),
+        date(2026, 1, 11),
+        date(2026, 1, 19),
+        date(2026, 1, 20),
+    ]
+
+
+def test_historia_w_okresie_nieistniejace_konto():
+    bank = BankSystem()
+
+    with pytest.raises(KontoNieIstnieje):
+        bank.historia_w_okresie(
+            numer="1234567890",
+            od=date(2026, 1, 10),
+            do=date(2026, 1, 20)
+        )
